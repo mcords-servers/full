@@ -3,8 +3,7 @@
 [![Discord](https://img.shields.io/discord/1369798082195095592?label=Join%20MCords%20Discord&style=flat-square)](https://discord.gg/FdHhRYW66P)
 
 
-**MCords Base** is a lightweight Minecraft proxy server framework written in C, designed to modify packets on the fly.  
-This version provides a clean, open-source base for building your own custom Minecraft server or proxy.
+**MCords Full** is a lightweight Minecraft proxy server written in C, designed to modify packets on the fly.  
 
 ---
 
@@ -22,7 +21,7 @@ This version provides a clean, open-source base for building your own custom Min
 ### 📂 Clone the Repository
 
 ```bash
-git clone https://github.com/profic0de/mcords-base.git
+git clone https://github.com/mcords-servers/full.git
 ```
 
 ---
