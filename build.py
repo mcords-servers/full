@@ -7,6 +7,7 @@ BLACKLIST = [
     "test.c",
     "auth.c",
     "mem.c",
+    "old.c",
     "old_main.c",
     "temp_test.c"
 ]

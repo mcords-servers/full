@@ -30,6 +30,7 @@
  }"
 
 int process_packet(Packet* packet) {
+    printf("From fd=%d\n",packet->from);
     print_readable(packet->buf);
     
     int fd = packet->from;
@@ -48,7 +49,7 @@ int process_packet(Packet* packet) {
         buf = init_buffer();
         if (!parse_varint(packet->buf, &error)) {
             build_varint(buf, 0x00);
-            build_string(buf, MOTD);            
+            build_string(buf, MOTD);
         } else {
             build_varint(buf, 0x01);
             build_integer(buf, parse_integer(packet->buf, 8, 1, &error), 8, 1);
@@ -60,11 +61,39 @@ int process_packet(Packet* packet) {
         }
         break;
 
-    case 2:    
+    case 2:
+        int *sfd = fds_get(fd, "server");
+        if (sfd) {
+            buf = init_buffer();
+            append_to_buffer(buf, packet->buf->buffer, packet->buf->length);
+            fd = *sfd;
+            break;
+        }
+        int serv = create_connection("127.0.0.1", 25565);
+        int *owner = malloc(sizeof(int));
+        *owner = packet->from;
+        mem_add(serv, owner);
+        fds_set(serv, "owner", owner);
+
+        int *server = malloc(sizeof(int));
+        *server = serv;
+        mem_add(fd, server);
+        fds_set(fd, "server", server);
+
         buf = init_buffer();
         build_varint(buf, 0x00);
-        build_string(buf, "{'text':'test'}");
+        build_varint(buf, 773);
+        build_string(buf, "127.0.0.1");
+        build_integer(buf, 25565, 2, 0);
+        build_varint(buf, 2);
+        packet_send(buf, serv);
+        free_buffer(buf);
+
+        packet_send(packet->buf, serv);
+        buf = NULL;
+        // LOG("Established connection with fd=%d", create_connection("127.0.0.1", 25565));
         break;
+
 
     case 3:    
         buf = init_buffer();
@@ -73,6 +102,13 @@ int process_packet(Packet* packet) {
         break;
     
     default:
+        int *o = fds_get(fd, "owner");
+        if (o) {
+            buf = init_buffer();
+            append_to_buffer(buf, packet->buf->buffer, packet->buf->length);
+            fd = *o;
+            break;
+        }
         if (parse_varint(packet->buf, &error) || error) return 1;
         parse_varint(packet->buf, &error);
         free(parse_string(packet->buf, 255, &error));

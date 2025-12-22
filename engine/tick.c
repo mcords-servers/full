@@ -5,18 +5,18 @@
 #include <malloc.h>
 #include <stdio.h>
 
-int ticks = 0;
+// int ticks = 0;
 
 void tick() {
-    if (++ticks%150==0) exitbool = 1;
+    // if (++ticks%150==0) exitbool = 1;
     Packet** packet_ql = malloc(sizeof(Packet*));
     int packet_l = 0;
     int r;
     for (int i = 0; i < packets; i++) {
         if (!packet_queue[i]) continue;
         if (packet_queue[i]->state) {
-            packet_ql[packet_l] = packet_queue[i];
-            packet_ql = realloc(packet_ql, sizeof(Packet*)*++packet_l);
+            packet_ql = realloc(packet_ql, sizeof(Packet*) * (packet_l + 1));
+            packet_ql[packet_l++] = packet_queue[i];
         } else {
             r = process_packet(packet_queue[i]);
             if (r) {

@@ -1,5 +1,6 @@
 #include "h/globals.h"
 #include "h/mem.h"
+#include "h/fds.h"
 #include "h/packet.h"
 #include "h/requests.h"
 #include "h/clock.h"
@@ -24,8 +25,9 @@ int max_fds = 0;
 Data** fds;
 Packet** packet_queue;
 int packets;
-
 typedef struct config config;
+config* c;
+
 config* load(char* file, int len, char* fallback);
 char* get_config(config* config, char* key);
 int free_config(config* config);
@@ -46,6 +48,11 @@ void close_connection(int fd) {
 
     packet_queue_free(fd);
     printf("Closed connection (fd=%d)\n", fd);
+
+    //TODO: Remove this from final version (maybe)
+    if (get_config(c, "debug")) {
+        exitbool = 1;
+    }
 }
 
 void accept_connection(int server_fd, int epoll_fd) {
@@ -76,99 +83,194 @@ void accept_connection(int server_fd, int epoll_fd) {
     }
 }
 
+// [ ]:
+
+int create_connection(const char *ip, int port) {
+    int sock = socket(AF_INET, SOCK_STREAM, 0);
+    if (sock < 0) return -1;
+
+    fcntl(sock, F_SETFL, fcntl(sock, F_GETFL) | O_NONBLOCK);
+
+    struct sockaddr_in addr = {
+        .sin_family = AF_INET,
+        .sin_port = htons(port)
+    };
+
+    if (inet_pton(AF_INET, ip, &addr.sin_addr) != 1) {
+        close(sock);
+        return -1;
+    }
+
+    int r = connect(sock, (struct sockaddr*)&addr, sizeof(addr));
+        if (r == 0) {
+        printf("Connected immediately (fd=%d)\n", sock);
+
+        struct epoll_event ev = {
+            .events = DEFAULT_EPOLL_FLAGS,
+            .data.fd = sock
+        };
+        epoll_ctl(epoll_fd, EPOLL_CTL_ADD, sock, &ev);
+
+        return sock;
+    }
+
+    if (r < 0 && errno != EINPROGRESS) {
+        close(sock);
+        return -1;
+    }
+
+    struct epoll_event ev = {
+        .events = DEFAULT_EPOLL_FLAGS,
+        .data.fd = sock
+    };
+
+    epoll_ctl(epoll_fd, EPOLL_CTL_ADD, sock, &ev);
+
+
+    queue[sock] = NULL;
+    fds[sock] = NULL;
+
+    printf("Created connection (fd=%d)\n",sock);
+    fds_set(sock, "", NULL);
+
+    return sock;
+
+}
+
 int handle_packet(int fd, int epoll_fd) {
 
-    //packet_queue[i]->state
-    //0x00 - 
-    //0x02 - len unknownfinished
-    //0x01 - unfinished
+    Buffer* stream = init_buffer();
+    char buf[4096];
 
     if (!packet_queue) {
         packet_queue = malloc(sizeof(Packet*));
         packet_queue[0] = NULL;
-        packets = 1;
+        packets = 0;
     }
 
-    Packet* packet;
+    /* ========== 1. FULLY DRAIN SOCKET INTO STREAM ========== */
     while (1) {
-        packet = NULL;
+        ssize_t n = recv(fd, buf, sizeof(buf), 0);
+
+        if (n > 0) {
+            append_to_buffer(stream, buf, n);
+            continue;
+        }
+
+        if (n == 0) { 
+            close_connection(fd);
+            return 1;
+        }
+
+        if (errno == EAGAIN || errno == EWOULDBLOCK)
+            break;
+
+        perror("recv");
+        close_connection(fd);
+        return 2;
+    }
+
+    /* If no data read, nothing to do */
+    if (stream->length == 0)
+        return 0;
+
+    /* ========== 2. BEGIN PACKET EXTRACTION LOOP ========== */
+    while (1) {
+
+        /* Find unfinished packet belonging to this fd */
+        Packet *packet = NULL;
         for (int i = 0; i < packets; i++) {
-            if (packet_queue[i] && packet_queue[i]->state && packet_queue[i]->from == fd) {
+            if (packet_queue[i] &&
+                packet_queue[i]->from == fd &&
+                packet_queue[i]->state != FINISHED) {
+
                 packet = packet_queue[i];
                 break;
             }
         }
 
+        /* No existing packet → allocate new state */
         if (!packet) {
             packet = malloc(sizeof(Packet));
-            packet->buf = init_buffer();
+            packet->buf  = init_buffer();
             packet->from = fd;
-            packet->state = 0x02;
+            packet->state = LEN_UNKNOWN;
+            packet->len = 0;
 
             packet_queue = realloc(packet_queue, sizeof(Packet*) * (packets + 1));
             if (!packet_queue) { perror("realloc"); exit(1); }
+
             packet_queue[packets++] = packet;
         }
 
-        char buf[4096];
-        int amout = (packet->state==0x01 && packet->len > sizeof(buf))? sizeof(buf) : (packet->state==0x02)? 1 : packet->len - packet->buf->length;
-        ssize_t n = recv(fd, buf, amout, 0);
-        if (n == 0) {
-            close_connection(fd);
-            for (int i = 0; i < packets; i++) {
-                if (packet_queue && packet_queue[i]->from==fd) {
-                    free_buffer(packet_queue[i]->buf);
-                    free(packet_queue[i]);
-                    packet_queue[i] = NULL;
-                }
-            }
-            return 1;
-        } else if (n < 0) {
-            if (errno != EAGAIN && errno != EWOULDBLOCK) {
-                perror("recv");
-                close_connection(fd);
-                return 2;
-            } else if (errno == EAGAIN || errno == EWOULDBLOCK) {
-                return 0;
-            }
-        } else {
-            append_to_buffer(packet->buf, buf, n);
-        }
-        // Example: handle your packet data here
-        // printf("[fd=%d] Received %zd bytes\n", fd, n);
-
-        if (packet->state == 0x02) {
+        /* ========== 3. READ PACKET LENGTH IF UNKNOWN ========== */
+        if (packet->state == LEN_UNKNOWN) {
             uint32_t packet_len = 0;
-            char err = 0;
-            int i = 0;
-            int shift = 0;
-            for (; i < packet->buf->length; i++) {
-                uint8_t b = packet->buf->buffer[i];
+            uint32_t shift = 0;
+            int varint_bytes = 0;
+
+            /* We need at least 1 byte */
+            if (stream->length == 0)
+                break;
+
+            while (varint_bytes < stream->length) {
+                uint8_t b = stream->buffer[varint_bytes];
                 packet_len |= (b & 0x7F) << shift;
-                if (!(b & 0x80)) break;
-                shift += 7;
-                if (shift >= 32) {err = 1; break;}
-            } if (!err) {
-                if (packet_len > 0) {
+
+                if (!(b & 0x80)) {
+                    /* full varint decoded */
+                    cut_buffer(stream, -(varint_bytes + 1));
                     packet->len = packet_len;
-                    packet->state = 0x01;
-                    cut_buffer(packet->buf, -(i+1));
+                    packet->state = UNFINISHED;
+                    goto LENGTH_DONE;
                 }
+
+                shift += 7;
+                varint_bytes++;
+
+                if (shift >= 32)
+                    return 3;
             }
+
+            /* incomplete varint */
+            break;
+
+LENGTH_DONE:;
         }
-        if (packet->buf->length == packet->len && packet->state == 0x01) {
-            packet->state = 0x00;
-            // printf("[fd=%i] Got a minecraft packet:\n",fd);
-            // print_hex(packet->buf);
+
+        /* ========== 4. MOVE DATA FROM STREAM INTO PACKET ========== */
+        size_t need = packet->len - packet->buf->length;
+        size_t available = stream->length;
+
+        if (available == 0)
+            break;
+
+        size_t take = (need < available) ? need : available;
+
+        append_to_buffer(packet->buf, stream->buffer, take);
+        cut_buffer(stream, -((int)take));
+
+        /* ========== 5. PACKET COMPLETED ========== */
+        if (packet->buf->length == packet->len) {
+            packet->state = FINISHED;
+
+            /* At this point your packet is complete */
+            /* call your handler here */
+
+            /* After processing it, free slot for next packet */
+            // Example: hold finished packets in queue or dispatch immediately
         }
-        // if (packet->state == 0x00) break;
+
+        /* If finished → loop again and try next packet inside stream */
     }
+
+    free_buffer(stream);
     return 0;
 }
 
 int main() {
     packets = 0;
-    config* c = load("server.properties", 0,
+    c = load("server.properties", 0,
         "# Default Minecraft server properties\n"
         "motd=My Minecraft Server\n"
         "server-port=25568\n"
@@ -221,7 +323,7 @@ int main() {
         return 1;
     }
 
-    http_init(); // keep your http subsystem
+    http_init(); // keep http system
 
     int max_events;
     char* events_str = get_config(c, "max-events");

@@ -16,7 +16,11 @@ extern int max_fds;
 typedef struct {
     int from;
     int len;
-    char state;
+    enum {
+        FINISHED,
+        LEN_UNKNOWN,
+        UNFINISHED
+    } state;
     Buffer* buf;
 } Packet;
 
@@ -32,5 +36,6 @@ extern Packet** packet_queue;
 extern int packets;
 
 #define LOG(fmt, ...) printf("[%s:%d] " fmt "\n", __FILE__, __LINE__, ##__VA_ARGS__)
+#define debug LOG("called debug");
 
 #endif

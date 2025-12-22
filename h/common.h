@@ -8,6 +8,7 @@
 // } AsyncState;
 
 void close_connection(int fd);
+int create_connection(const char* ip, int port);
 
 typedef struct {
     int length;
