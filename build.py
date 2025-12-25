@@ -9,7 +9,8 @@ BLACKLIST = [
     "mem.c",
     "old.c",
     "old_main.c",
-    "temp_test.c"
+    "temp_test.c",
+    "ignore/"
 ]
 # --------------
 

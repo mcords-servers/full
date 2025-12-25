@@ -1,0 +1,5 @@
+if true
+jump 1
+out "  some  " space            code " "
+
+true

@@ -94,7 +94,6 @@ int process_packet(Packet* packet) {
         // LOG("Established connection with fd=%d", create_connection("127.0.0.1", 25565));
         break;
 
-
     case 3:    
         buf = init_buffer();
         build_varint(buf, 0x00);
