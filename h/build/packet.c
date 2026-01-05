@@ -44,3 +44,44 @@ void build_integer(Buffer *out, int64_t value, int bytes, int is_signed) {
 
     append_to_buffer(out, temp, bytes);
 }
+
+void build_float(Buffer *out, float value) {
+    uint32_t bits;
+    memcpy(&bits, &value, sizeof(bits));  // reinterpret IEEE-754
+
+    char temp[4];
+    temp[0] = (bits >> 24) & 0xFF;
+    temp[1] = (bits >> 16) & 0xFF;
+    temp[2] = (bits >> 8)  & 0xFF;
+    temp[3] = bits & 0xFF;
+
+    append_to_buffer(out, temp, 4);
+}
+
+void build_double(Buffer *out, double value) {
+    uint64_t bits;
+    memcpy(&bits, &value, sizeof(bits));  // reinterpret IEEE-754
+
+    char temp[8];
+    temp[0] = (bits >> 56) & 0xFF;
+    temp[1] = (bits >> 48) & 0xFF;
+    temp[2] = (bits >> 40) & 0xFF;
+    temp[3] = (bits >> 32) & 0xFF;
+    temp[4] = (bits >> 24) & 0xFF;
+    temp[5] = (bits >> 16) & 0xFF;
+    temp[6] = (bits >> 8)  & 0xFF;
+    temp[7] = bits & 0xFF;
+
+    append_to_buffer(out, temp, 8);
+}
+
+// void build_mcjson(Buffer *out, char *str) {
+//     char stack[256] = {0};
+//     char string[65536];
+//     void parse_tag() {
+
+
+//         if (false) parse_tag();
+//     }
+//     parse_tag();
+// }

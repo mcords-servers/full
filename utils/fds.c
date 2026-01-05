@@ -67,7 +67,7 @@ int fds_incr(int fd, char* key) {
         // first time, allocate and initialize
         counter = malloc(sizeof(int));
         if (!counter) return -1;    // malloc failed
-        *counter = 0;
+        *counter = -1;
         fds_set(fd, (char*)key, counter);
         mem_add(fd, counter);
     }

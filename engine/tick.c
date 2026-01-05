@@ -8,7 +8,7 @@
 // int ticks = 0;
 
 void tick() {
-    // if (++ticks%150==0) exitbool = 1;
+    // if (++ticks%200==0) exitbool = 1;
     Packet** packet_ql = malloc(sizeof(Packet*));
     int packet_l = 0;
     int r;
@@ -32,4 +32,8 @@ void tick() {
     packet_queue = packet_l?packet_ql:NULL;
     packets = packet_l?packet_l:0;
     if (!packet_l) free(packet_ql);
+
+    int engine_lobby(int fd, Packet *packet);
+    engine_lobby(-1, NULL);
+
 }

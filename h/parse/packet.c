@@ -141,3 +141,41 @@ Buffer *parse_prefixed_bytes_array(Buffer *buf, int max_length, int optional, in
 
     return result;
 }
+
+float parse_float(Buffer *buf, int *error) {
+    if (buf->length < 4) {
+        (*error)++;
+        return 0.0f;
+    }
+
+    uint32_t bits = 0;
+    bits |= ((uint32_t)(uint8_t)buf->buffer[0]) << 24;
+    bits |= ((uint32_t)(uint8_t)buf->buffer[1]) << 16;
+    bits |= ((uint32_t)(uint8_t)buf->buffer[2]) << 8;
+    bits |= ((uint32_t)(uint8_t)buf->buffer[3]);
+
+    cut_buffer(buf, -4);
+
+    float value;
+    memcpy(&value, &bits, sizeof(value));
+    return value;
+}
+
+double parse_double(Buffer *buf, int *error) {
+    if (buf->length < 8) {
+        (*error)++;
+        return 0.0;
+    }
+
+    uint64_t bits = 0;
+    for (int i = 0; i < 8; i++) {
+        bits <<= 8;
+        bits |= (uint8_t)buf->buffer[i];
+    }
+
+    cut_buffer(buf, -8);
+
+    double value;
+    memcpy(&value, &bits, sizeof(value));
+    return value;
+}

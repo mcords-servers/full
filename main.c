@@ -36,6 +36,9 @@ void close_connection(int fd) {
     epoll_ctl(epoll_fd, EPOLL_CTL_DEL, fd, NULL);
     close(fd);
 
+    int players_remove(int fd);
+    players_remove(fd);
+
     mem_free(fd);
     Data* block = fds[fd];
     while (block) {
@@ -49,10 +52,10 @@ void close_connection(int fd) {
     packet_queue_free(fd);
     printf("Closed connection (fd=%d)\n", fd);
 
-    //TODO: Remove this from final version (maybe)
-    if (get_config(c, "debug")) {
-        exitbool = 1;
-    }
+    //: Remove this from final version (maybe)
+    // if (get_config(c, "debug")) {
+    //     exitbool = 1;
+    // }
 }
 
 void accept_connection(int server_fd, int epoll_fd) {
@@ -82,8 +85,6 @@ void accept_connection(int server_fd, int epoll_fd) {
         fds[client_fd] = NULL;
     }
 }
-
-// [ ]:
 
 int create_connection(const char *ip, int port) {
     int sock = socket(AF_INET, SOCK_STREAM, 0);
@@ -134,7 +135,6 @@ int create_connection(const char *ip, int port) {
     fds_set(sock, "", NULL);
 
     return sock;
-
 }
 
 int handle_packet(int fd, int epoll_fd) {
@@ -278,7 +278,8 @@ int main() {
         "online-mode=true\n"
         "view-distance=10\n"
         "max-fds=65536\n"
-        "max-events=1024\n");
+        "max-events=1024\n"
+        "minecraft-core=1.21.10\n");
 
     int port;
     char* ports = get_config(c, "server-port");
@@ -349,6 +350,8 @@ int main() {
     printf("Node listening on port %d (EPOLLET, non-blocking, timeout=0)\n", port);
     int ticks = 0;
     while (!exitbool) {
+        http_perform();
+
         int nfds = epoll_wait(epoll_fd, events, max_events, 0); // non-blocking!
         if (nfds < 0) {
             if (errno == EINTR) continue;
@@ -381,6 +384,8 @@ int main() {
     }
 
     fflush(stdout);
+    extern int *lobby_players;
+    if (lobby_players) free(lobby_players);
 
     free(events);
     free_config(c);
