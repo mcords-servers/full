@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 #include <math.h>
 
 #define max(x,y) (x>y?x:y)
@@ -22,8 +23,12 @@
 //     return v3;
 // }
 
+#define None 0
+
+#define TAG_Test(buf, val) (val==None)?LOG("a"):None
+
 int main() {
-    char stack = {0,0};
-    LOG("%d", sizeof(stack));
+    TAG_Test(0,0);
+    TAG_Test(0,1);
     return 0;
 }

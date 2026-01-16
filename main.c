@@ -17,6 +17,7 @@
 #define DEFAULT_EPOLL_FLAGS (EPOLLIN | EPOLLET | EPOLLRDHUP)
 
 int epoll_fd;
+int debug_level;
 int exitbool = 0;
 int max_fds = 0;
 
@@ -49,8 +50,16 @@ void close_connection(int fd) {
     }
     fds[fd] = NULL;
 
+    for (int i = 0; i < packets; i++) {
+        if (!packet_queue[i]) continue;
+        if (packet_queue[i]->from==fd) {
+            free_buffer(packet_queue[i]->buf);
+            free(packet_queue[i]);
+            packet_queue[i]=NULL;
+        }
+    }
     packet_queue_free(fd);
-    printf("Closed connection (fd=%d)\n", fd);
+    if (debug_level) printf("Closed connection (fd=%d)\n", fd);
 
     //: Remove this from final version (maybe)
     // if (get_config(c, "debug")) {
@@ -80,7 +89,7 @@ void accept_connection(int server_fd, int epoll_fd) {
 
         char ip[INET_ADDRSTRLEN];
         inet_ntop(AF_INET, &client_addr.sin_addr, ip, sizeof(ip));
-        printf("New client connected: %s:%d (fd=%d)\n", ip, ntohs(client_addr.sin_port), client_fd);
+        if (debug_level) printf("New client connected: %s:%d (fd=%d)\n", ip, ntohs(client_addr.sin_port), client_fd);
         queue[client_fd] = NULL;
         fds[client_fd] = NULL;
     }
@@ -104,7 +113,6 @@ int create_connection(const char *ip, int port) {
 
     int r = connect(sock, (struct sockaddr*)&addr, sizeof(addr));
         if (r == 0) {
-        printf("Connected immediately (fd=%d)\n", sock);
 
         struct epoll_event ev = {
             .events = DEFAULT_EPOLL_FLAGS,
@@ -131,7 +139,7 @@ int create_connection(const char *ip, int port) {
     queue[sock] = NULL;
     fds[sock] = NULL;
 
-    printf("Created connection (fd=%d)\n",sock);
+    if (debug_level) printf("Created connection (fd=%d)\n",sock);
     fds_set(sock, "", NULL);
 
     return sock;
@@ -279,7 +287,8 @@ int main() {
         "view-distance=10\n"
         "max-fds=65536\n"
         "max-events=1024\n"
-        "minecraft-core=1.21.10\n");
+        "minecraft-core=1.21.10\n"
+        "debug_level=0");
 
     int port;
     char* ports = get_config(c, "server-port");
@@ -287,6 +296,9 @@ int main() {
 
     char* temp_fds = get_config(c, "max-fds");
     sscanf(temp_fds ? temp_fds : "65536", "%i", &max_fds);
+
+    char* temp_debug_level = get_config(c, "debug_level");
+    sscanf(temp_debug_level ? temp_debug_level : "0", "%i", &debug_level);
 
     queue = malloc(sizeof(PacketQueue*)*max_fds);
     fds = calloc(max_fds, sizeof(Data*));

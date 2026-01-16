@@ -15,15 +15,19 @@
 #include "common.h"
 
 #include <stdio.h>
+#include <string.h>
 #include <malloc.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <math.h>
 
+#define None 0
 #define false 0
 #define true 1
 #define max(x,y) (x>y?x:y)
 #define min(x,y) (x<y?x:y)
+
+extern int debug_level;
 
 typedef struct config config;
 char* get_config(config* config, char* key);

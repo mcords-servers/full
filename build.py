@@ -36,7 +36,7 @@ def find_c_sources():
 
 def compile_sources(sources, output):
     print("📦 Compiling sources...")
-    cmd = ["gcc", "-g","-fsanitize=address", "-I.", "-Ih", "-Wall", "-Wno-deprecated-declarations", "-o", output,
+    cmd = ["gcc", "-g","-fsanitize=address", "-I.", "-Ih", "-Wall", "-Wno-deprecated-declarations", "-Wno-nonnull", "-o", output,
            "-L/usr/lib", "-lcurl", "-lm"] + sources #, "-Dprintf(...)=my_printf(__VA_ARGS__)"
         #    "-L/usr/lib", "-lcrypto", "-lssl", "-lresolv", "-lcurl"] + sources #, "-Dprintf(...)=my_printf(__VA_ARGS__)"
     result = subprocess.run(cmd)

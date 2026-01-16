@@ -99,6 +99,7 @@ void print_hex(const Buffer *buf) {
     printf("%s","");
     for (size_t i = 0; i < buf->length; ++i) {
         fprintf(stdout, "%02X", (unsigned char)buf->buffer[i]);
+        if (!(i%1)) putc(' ',stdout);
     }
     fprintf(stdout, "\n");
 }
