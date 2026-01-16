@@ -15,10 +15,8 @@ int engine_lobby_process_player_chunks(int fd) {
     TAG_String(buf,"color","red");
     TAG_String(buf,"text","some text");
     TAG_List(buf,"extra",10,1);
-    // remove: TAG_Compound(buf,"");
     TAG_String(buf,"color","red");
     TAG_String(buf,"text"," some other text");
-    // remove: TAG_End(buf);
     TAG_End(buf);
     TAG_End(buf);
     build_varint(buf,false);
