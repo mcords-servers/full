@@ -13,6 +13,7 @@
 #include "globals.h"
 #include "packet.h"
 #include "common.h"
+#include "plugin.h"
 
 #include <stdio.h>
 #include <string.h>

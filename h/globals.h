@@ -36,6 +36,8 @@ extern Packet** packet_queue;
 extern int packets;
 
 #define LOG(fmt, ...) printf("[%s:%d] " fmt "\n", __FILE__, __LINE__, ##__VA_ARGS__)
-#define debug LOG("called debug");
+// #define debug LOG("called debug");
+
+#define File_Name __FILE_NAME__
 
 #endif

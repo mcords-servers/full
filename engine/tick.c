@@ -1,13 +1,11 @@
 #include "engine/packets.h"
 #include "engine/tick.h"
-#include "globals.h"
-#include "common.h"
-#include <malloc.h>
-#include <stdio.h>
+#include "kit.h"
 
 // int ticks = 0;
 
 void tick() {
+    run_plugins(1, NULL);
     // if (++ticks%200==0) exitbool = 1;
     Packet** packet_ql = malloc(sizeof(Packet*));
     int packet_l = 0;
@@ -18,6 +16,8 @@ void tick() {
             packet_ql = realloc(packet_ql, sizeof(Packet*) * (packet_l + 1));
             packet_ql[packet_l++] = packet_queue[i];
         } else {
+            // run_plugins(2, packet_queue[i]);
+            run_plugins(2, packet_queue[i]);
             r = process_packet(packet_queue[i]);
             if (r) {
                 LOG("Disconnected (fd=%d) due to error code %d from process_packet", packet_queue[i]->from, r);

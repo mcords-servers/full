@@ -1,4 +1,5 @@
 #include "h/globals.h"
+#include "h/plugin.h"
 #include "h/mem.h"
 #include "h/fds.h"
 #include "h/packet.h"
@@ -358,6 +359,10 @@ int main() {
         close(epoll_fd);
         return 1;
     }
+
+    printf("Plugins loaded:");
+    run_plugins(0, NULL);
+    printf("\n");
 
     printf("Node listening on port %d (EPOLLET, non-blocking, timeout=0)\n", port);
     int ticks = 0;
